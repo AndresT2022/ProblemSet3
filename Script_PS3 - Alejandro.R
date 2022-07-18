@@ -53,10 +53,21 @@ available_features() %>% head(20)
 available_tags("amenity") %>% head(20)
 
 
-test_final_chapinero <- subset(test, localidad == "CHAPINERO")
-train_final_chapinero <- subset(train, localidad == "CHAPINERO") 
-test_final_poblado <- subset(test, localidad== "POBLADO")
-train_final_poblado <- subset(train, localidad== "POBLADO") 
+test_final_chapinero <- subset(test_final, localidad == "CHAPINERO") %>%
+  mutate(surface_total = ifelse(is.na(surface_total) == TRUE,surface_covered,surface_total ))
+
+train_final_chapinero <- subset(train_final, localidad == "CHAPINERO")%>%
+  mutate(surface_total = ifelse(is.na(surface_total) == TRUE,surface_covered,surface_total ))
+
+test_final_poblado <- subset(test_final, localidad== "POBLADO")%>%
+  mutate(surface_total = ifelse(is.na(surface_total) == TRUE,surface_covered,surface_total ))
+
+train_final_poblado <- subset(train_final, localidad== "POBLADO") %>%
+  mutate(surface_total = ifelse(is.na(surface_total) == TRUE,surface_covered,surface_total ))
+
+
+
+
 
 
 ###-Datos Shapefile Manzana Urbano DANE MGN -------
@@ -73,8 +84,8 @@ polygon_trans
 
 
 ## convertir en sf
-housing_chapinero = st_as_sf(x=train_final_chapinero,coords=c("lon","lat"),crs=4326)
-
+housing_ch <- st_as_sf(x=train_final_chapinero,coords=c("lon","lat"),crs=4326)
+housing_chapinero <-  st_intersection(polygon_trans, housing_ch)
 class(housing_chapinero)
 
 
@@ -92,12 +103,17 @@ osm_sf
 bus_station = osm_sf$osm_points %>% select(osm_id,amenity)
 bus_station
 
+
+bus_station_chapinero <- st_intersection(polygon_trans, bus_station)
+
+
+
 ## Pintar las estaciones de autobus, la localidad y los aptos
 map <- leaflet() %>%
   addTiles(group = "Open Street")%>% 
   addPolygons(data = polygon_trans, color = "blue")%>% 
-  addCircleMarkers(data=bus_station , col="red")%>% 
-  addCircleMarkers(data=housing_chapinero , col="green" , label=housing_chapinero$property_id)
+  addCircleMarkers(data=bus_station_chapinero , col="red")%>% 
+  addCircleMarkers(data=housing_chapinero , col="green" , label=housing_chapinero$title, radius= 0.25)
   addLayersControl(
     baseGroups = c("Open Street", "World Imagery")
   )

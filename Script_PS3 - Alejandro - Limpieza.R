@@ -878,6 +878,11 @@ train_final = train_final %>%
                             bathrooms))
 table(is.na(train_final$bathrooms))
 
+saveRDS(train_final,file = "train_final_V2.rds")
+saveRDS(test_final,file = "test_final_V2.rds")
+skim(test_final)
+skim(train_final)
+
 
 ###-Datos Shapefile Manzana Urbano DANE MGN -------
 # Caracteristicas disponibles

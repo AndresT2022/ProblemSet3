@@ -108,6 +108,57 @@ test_final = test_final %>%
                               new_surface))
 sum(table(test_final$new_surface))
 
+## more patterns
+h = "[:digit:]+[:space:]+m2"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= h),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+l = "[:digit:]+[:space:]+mts"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= l),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+k = "[:digit:]+[:space:]+metros"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= k),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+m = "[:digit:]+mts"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= m),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+n = "[:digit:]+m2"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= n),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+t = "[:digit:]+[:space:]+m"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= t),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+q = "[:digit:]+m"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= q),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+
 #volver new_surface a numeric
 
 for (i in 1:nrow(test_final)) {
@@ -127,8 +178,28 @@ for (i in 1:nrow(test_final)) {
 
 for (i in 1:nrow(test_final)) {
   test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "[:space:]+m" , replacement = "")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "mts" , replacement = "")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "m2" , replacement = "")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "m" , replacement = "")
+}
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
                                              pattern = "," , replacement = ".")
 }
+
 class(test_final$new_surface)
 test_final$new_surface <- as.numeric(test_final$new_surface)
 class(test_final$new_surface)
@@ -463,6 +534,7 @@ table(is.na(test_final$bathrooms))
 
 #--
 table(is.na(train_final$surface_total))
+
 #train_final
 ## Usar descripcion para hallar metros cuadrados
 
@@ -485,6 +557,57 @@ train_final = train_final %>%
                               new_surface))
 sum(table(train_final$new_surface))
 
+## more patterns
+h = "[:digit:]+[:space:]+m2"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= h),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+l = "[:digit:]+[:space:]+mts"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= l),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+k = "[:digit:]+[:space:]+metros"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= k),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+m = "[:digit:]+mts"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= m),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+n = "[:digit:]+m2"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= n),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+t = "[:digit:]+[:space:]+m"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= t),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+q = "[:digit:]+m"
+train_final = train_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=train_final$description , pattern= q),
+                              new_surface))
+sum(table(train_final$new_surface))
+
+
 #volver new_surface a numeric
 
 for (i in 1:nrow(train_final)) {
@@ -504,8 +627,28 @@ for (i in 1:nrow(train_final)) {
 
 for (i in 1:nrow(train_final)) {
   train_final$new_surface[i]<-str_replace_all(string = train_final$new_surface[i] , 
+                                              pattern = "[:space:]+m" , replacement = "")
+}
+
+for (i in 1:nrow(train_final)) {
+  train_final$new_surface[i]<-str_replace_all(string = train_final$new_surface[i] , 
+                                              pattern = "mts" , replacement = "")
+}
+
+for (i in 1:nrow(train_final)) {
+  train_final$new_surface[i]<-str_replace_all(string = train_final$new_surface[i] , 
+                                              pattern = "m2" , replacement = "")
+}
+
+for (i in 1:nrow(train_final)) {
+  train_final$new_surface[i]<-str_replace_all(string = train_final$new_surface[i] , 
+                                              pattern = "m" , replacement = "")
+}
+for (i in 1:nrow(train_final)) {
+  train_final$new_surface[i]<-str_replace_all(string = train_final$new_surface[i] , 
                                               pattern = "," , replacement = ".")
 }
+
 class(train_final$new_surface)
 train_final$new_surface <- as.numeric(train_final$new_surface)
 class(train_final$new_surface)
@@ -516,6 +659,7 @@ train_final = train_final %>%
                                 new_surface,
                                 surface_total))
 table(is.na(train_final$surface_total))
+
 ## make buffer 1
 house_buf <- st_buffer(train_final,dist=35)
 
@@ -877,64 +1021,20 @@ train_final = train_final %>%
                             bathrooms_new_7,
                             bathrooms))
 table(is.na(train_final$bathrooms))
+#Limpio variables que no sirven
 
-saveRDS(train_final,file = "train_final_V2.rds")
-saveRDS(test_final,file = "test_final_V2.rds")
-skim(test_final)
-skim(train_final)
+#borrar variables q no se consideran útiles
+train_final<-train_final %>% 
+  select(-"surface_covered",-"new_surface",-"surface_new_3",-"surface_new_4",
+         -"surface_new_5",-"surface_new_6",-"surface_new_15"
+         ,-"surface_new_16",-"new_bathrooms",-"bathrooms_new_2",-"bathrooms_new_3"
+         ,-"bathrooms_new_4",-"bathrooms_new_5",-"bathrooms_new_6",-"bathrooms_new_7")
 
+test_final<-test_final %>% 
+  select(-"surface_covered",-"new_surface",-"surface_new_3",-"surface_new_4",
+         -"surface_new_5",-"surface_new_6",-"surface_new_7"
+         ,-"new_bathrooms",-"bathrooms_new_2",-"bathrooms_new_3"
+         ,-"bathrooms_new_4",-"bathrooms_new_5",-"bathrooms_new_6")
 
-###-Datos Shapefile Manzana Urbano DANE MGN -------
-# Caracteristicas disponibles
-available_features() %>% head(20)
-available_tags("amenity") %>% head(20) # lugares
-
-polygons_mzn <- st_read("localidades.shp")
-
-polygon <- polygons_mzn %>% 
-  subset(., NOMBRE == "CHAPINERO") %>%
-  select (., NOMBRE, SHAPE_AREA,SHAPE_LEN, geometry)
-
-polygon_trans <- sf::st_transform(polygon, 4326)
-polygon_trans
-
-housing_chapinero <-  st_intersection(polygon_trans, housing_ch)
-## obtener la caja de coordenada que contiene el polígono de Bogotá
-opq(bbox = getbb("Bogotá Colombia"))
-## objeto osm
-osm = opq(bbox = getbb("Bogotá Colombia")) %>%
-  add_osm_feature(key="amenity" , value="bus_station") 
-class(osm)
-## extraer Simple Features Collection
-osm_sf = osm %>% osmdata_sf()
-osm_sf
-## Obtener un objeto sf
-bus_station = osm_sf$osm_points %>% select(osm_id,amenity)
-bus_station
-
-
-bus_station_chapinero <- st_intersection(polygon_trans, bus_station)
-
-
-
-## Pintar las estaciones de autobus, la localidad y los aptos
-map <- leaflet() %>%
-  addTiles(group = "Open Street")%>% 
-  addPolygons(data = polygon_trans, color = "blue")%>% 
-  addCircleMarkers(data=bus_station_chapinero , col="red")%>% 
-  addCircleMarkers(data=housing_chapinero , col="green" , label=housing_chapinero$title, radius= 0.25)
-  addLayersControl(
-    baseGroups = c("Open Street", "World Imagery")
-  )
-map
-
-
-
-
-
-
-
-leaflet() %>% addTiles() %>% addCircleMarkers(data=bus_station , col="red") %>% addPolygons(data=polygon) %>% 
-  addCircleMarkers(data=housing_chapinero , col="red" , label=housing_chapinero$property_id)
-
-
+saveRDS(train_final,file = "train_final_V3.rds")
+saveRDS(test_final,file = "test_final_V3.rds")

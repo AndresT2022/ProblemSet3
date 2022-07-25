@@ -1,0 +1,322 @@
+## load packages  -----    
+rm(list=ls())
+require(pacman)
+p_load(rio , tidyverse , sf , leaflet , osmdata , nngeo, rgeos, ggplot2, plotly)
+
+#setwd("C:\\Users\\DELL\\OneDrive - Universidad de los Andes\\MECA 2022_2023\\BIGDATA\\TALLERES\\ProblemSet3")
+
+## load data
+train <- import("train_final_V3.Rds") %>% mutate(base="train")
+test <- import("test_final_V3.Rds") %>% mutate(base="test")
+db_sf <- bind_rows(train,test) %>% st_as_sf(coords=c("lon","lat"),crs=4326)
+
+## get polygons ----
+poblado <- getbb(place_name = "Comuna 14 - El Poblado", 
+                 featuretype = "boundary:administrative", 
+                 format_out = "sf_polygon") 
+chapinero <- getbb(place_name = "UPZ Chapinero, Bogota", 
+                 featuretype = "boundary:administrative", 
+                 format_out = "sf_polygon")  %>% .$multipolygon
+class(chapinero)
+### Crop chapinero ----
+db_ch <- db_sf[chapinero,]
+
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("Bogotá, Colombia"))
+## objeto osm
+osm = opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key="amenity" , value="bus_station") 
+class(osm)
+## extraer Simple Features Collection
+osm_sf = osm %>% osmdata_sf()
+osm_sf
+## Obtener un objeto sf
+bus_station = osm_sf$osm_points %>% select(osm_id,amenity)
+bus_station
+
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("Bogotá, Colombia"))
+## objeto osm
+osm = opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key="landuse" , value="retail") 
+class(osm)
+## extraer Simple Features Collection
+osm_sf = osm %>% osmdata_sf()
+osm_sf
+## Obtener un objeto sf
+retail = osm_sf$osm_polygons %>% select(osm_id,amenity)
+retail
+
+
+
+parques <- opq(bbox = getbb("Bogota Colombia")) %>%
+  add_osm_feature(key = "leisure" , value = "park") 
+parques_sf <- osmdata_sf(parques)
+parques_geometria <- parques_sf$osm_polygons %>% 
+  select(osm_id, name)
+
+
+
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("UPZ Chapinero, Bogota"))
+## objeto osm
+osm3 = opq(bbox = getbb("UPZ Chapinero, Bogota")) %>%
+  add_osm_feature(key="amenity" , value="food_court") 
+class(osm3)
+## extraer Simple Features Collection
+osm_sf3 = osm3 %>% osmdata_sf()
+osm_sf3
+
+## Obtener un objeto sf
+food_court = osm_sf3$osm_points %>% select(osm_id,amenity)
+food_court
+
+
+
+bus_station_chapinero <- st_intersection(chapinero, bus_station)
+parks_chapinero <- st_intersection(chapinero, parques_geometria)
+food_court_chapinero <- st_intersection(chapinero, food_court)
+retail_chapinero <- st_intersection(chapinero, retail)
+
+
+# Calculamos el centroide de cada parque
+centroides_parques <- gCentroid(as(parks_chapinero$geometry, "Spatial"), byid = T)
+leaflet() %>%
+  addTiles() %>%
+  addPolygons(data = parks_chapinero, col = "green",
+              opacity = 0.8, popup = parks_chapinero$name) %>%
+  addCircles(lng = centroides_parques$x, 
+             lat = centroides_parques$y, 
+             col = "red", opacity = 1, radius = 1)
+
+# Calculamos el centroide de cada parque
+centroides_transmilenio <- gCentroid(as(bus_station_chapinero$geometry, "Spatial"), byid = T)
+leaflet() %>%
+  addTiles() %>%
+  addCircles(data = bus_station_chapinero, col = "green",
+              opacity = 0.8, popup = bus_station_chapinero$name) %>%
+  addCircles(lng = centroides_transmilenio$x, 
+             lat = centroides_transmilenio$y, 
+             col = "red", opacity = 1, radius = 1)
+
+## Pintar las estaciones de autobus, la localidad y los aptos
+map <- leaflet() %>%
+  addTiles(group = "Open Street")%>% 
+  addPolygons(data = chapinero, color = "blue")%>% 
+  addCircleMarkers(data=bus_station_chapinero , col="red")%>%
+  addPolygons(data=retail_chapinero , col="brown")%>%
+  addPolygons(data=parks_chapinero , col="green")%>% 
+  addCircleMarkers(data=db_ch , col="yellow" , label=db_ch$title, radius= 0.25)
+addLayersControl(
+  baseGroups = c("Open Street", "World Imagery")
+)
+map
+
+
+centroides_sf_parks <- st_as_sf(centroides_parques, coords = c("x", "y"))
+centroides_sf_bus_station<- st_as_sf(centroides_transmilenio, coords = c("x", "y"))
+
+
+dist_matrix_parks <- st_distance(x = db_ch, y = centroides_sf_parks)
+dist_matrix_bus_station <- st_distance(x = db_ch, y = centroides_sf_bus_station)
+
+# Encontramos la distancia mínima a un parque
+dist_min_parks <- apply(dist_matrix_parks, 1, min)
+dist_min_bus_station <- apply(dist_matrix_bus_station, 1, min)
+db_ch$distancia_parque <- dist_min_parks
+db_ch$distancia_bus_station <- dist_min_bus_station
+
+
+
+
+p <- ggplot(db_ch, aes(x = distancia_parque, y = price)) +
+  geom_point(col = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a un parque en metros (log-scale)", 
+       y = "Valor del inmueble (log-scale)",
+       title = "Relación entre la proximidad a un parque y el valor del inmueble en Chapinero") +
+  scale_x_log10() +
+  scale_y_log10(labels = scales::dollar) +
+  theme_bw()
+ggplotly(p)
+
+
+p2 <- ggplot(db_ch, aes(x = distancia_bus_station, y = price)) +
+  geom_point(col = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a una transporte en metros (log-scale)", 
+       y = "Valor del inmueble (log-scale)",
+       title = "Relación entre la proximidad a una estación de transporte y el valor del inmueble en Chapinero") +
+  scale_x_log10() +
+  scale_y_log10(labels = scales::dollar) +
+  theme_bw()
+ggplotly(p2)
+
+
+p3 <- ggplot(db_ch, aes(x = distancia_parque)) +
+  geom_histogram(bins = 50, fill = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a un parque en metros", y = "Cantidad",
+       title = "Distribución de la distancia a los parques") +
+  theme_bw()
+ggplotly(p3)
+
+p4 <- ggplot(db_ch, aes(x = distancia_bus_station)) +
+  geom_histogram(bins = 50, fill = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a una estación de Transmilenio en metros", y = "Cantidad",
+       title = "Distribución de la distancia a Transmilenio") +
+  theme_bw()
+ggplotly(p4)
+
+## crop Poblado ----
+db_pob <- db_sf[poblado,]
+
+## obtener la caja de coordenada que contiene el polígono de El Poblado
+opq(bbox = getbb("Medellín, Colombia"))
+## objeto osm
+osm3 = opq(bbox = getbb("Medellín, Colombia")) %>%
+  add_osm_feature(key="leisure" , value="park") 
+class(osm3)
+## extraer Simple Features Collection
+osm_sf3 = osm3 %>% osmdata_sf()
+osm_sf3
+      
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("Medellín, Colombia"))
+## objeto osm
+osm = opq(bbox = getbb("Medellín, Colombia")) %>%
+  add_osm_feature(key="amenity" , value="bus_station") 
+class(osm)
+## extraer Simple Features Collection
+osm_sf = osm %>% osmdata_sf()
+osm_sf
+## Obtener un objeto sf
+bus_station_p = osm_sf$osm_points %>% select(osm_id,amenity)
+bus_station_p
+
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("Medellín, Colombia"))
+## objeto osm
+osm = opq(bbox = getbb("Medellín, Colombia")) %>%
+  add_osm_feature(key="landuse" , value="retail") 
+class(osm)
+## extraer Simple Features Collection
+osm_sf = osm %>% osmdata_sf()
+osm_sf
+## Obtener un objeto sf
+retail_p = osm_sf$osm_polygons %>% select(osm_id,landuse)
+retail_p
+
+parques_p <- opq(bbox = getbb("Medellín, Colombia")) %>%
+  add_osm_feature(key = "leisure" , value = "park") 
+parques_p_sf <- osmdata_sf(parques_p)
+parques_p_geometria <- parques_p_sf$osm_polygons %>% 
+  select(osm_id, name)
+
+
+
+## obtener la caja de coordenada que contiene el polígono de Bogotá
+opq(bbox = getbb("Medellín, Colombia"))
+## objeto osm
+osm3 = opq(bbox = getbb("Medellín, Colombia")) %>%
+  add_osm_feature(key="amenity" , value="food_court") 
+class(osm3)
+## extraer Simple Features Collection
+osm_sf3 = osm3 %>% osmdata_sf()
+osm_sf3
+
+## Obtener un objeto sf
+food_court_p = osm_sf3$osm_points %>% select(osm_id,amenity)
+food_court_p
+
+
+
+bus_station_poblado <- st_intersection(poblado, bus_station_p)
+parks_poblado <- st_intersection(poblado, parques_p_geometria)
+food_court_poblado <- st_intersection(poblado, food_court_p)
+retail_poblado <- st_intersection(poblado, retail_p)
+
+      
+leaflet() %>% addTiles() %>%
+        addPolygons(data=poblado,color="red") %>% 
+        addPolygons(data=parks_poblado,color="green") %>% 
+        addCircleMarkers(data=bus_station_poblado,color="blue") %>% 
+        addPolygons(data=retail_poblado,color="brown") %>% 
+        addCircles(data=db_pob, color = "yellow")
+      
+# Calculamos el centroide de cada parque
+centroides_parques_p <- gCentroid(as(parks_poblado$geometry, "Spatial"), byid = T)
+leaflet() %>%
+addTiles() %>%
+addPolygons(data = parks_poblado, col = "green",
+                    opacity = 0.8, popup = parks_poblado$name) %>%
+        addCircles(lng = centroides_parques_p$x, 
+                   lat = centroides_parques_p$y, 
+                   col = "red", opacity = 1, radius = 1)  
+      
+#centroides_buses_p <- gCentroid(as(bus_station_poblado$geometry, "Spatial"), byid = T)
+#leaflet() %>%
+#  addTiles() %>%
+#  addPolygons(data = bus_station_poblado, col = "green",
+#              opacity = 0.8, popup = bus_station_poblado$name) %>%
+#  addCircles(lng = centroides_buses_p$x, 
+#             lat = centroides_buses_p$y, 
+#             col = "red", opacity = 1, radius = 1)       
+      
+      
+
+centroides_sfp_parks <- st_as_sf(centroides_parques_p, coords = c("x", "y"))
+#centroides_sfp_bus_station<- st_as_sf(centroides_buses_p, coords = c("x", "y"))
+
+
+dist_matrix_park_p <- st_distance(x = db_pob, y = centroides_sfp_parks)
+#dist_matrix_bus_station_p <- st_distance(x = db_pob, y = centroides_sfp_bus_station)
+
+# Encontramos la distancia mínima a un parque
+dist_min_parks_p <- apply(dist_matrix_park_p, 1, min)
+#dist_min_bus_station_p <- apply(dist_matrix_bus_station_p, 1, min)
+db_pob$distancia_parque <- dist_min_parks_p
+#db_pob$distancia_bus_station <- dist_min_bus_station_p
+
+
+
+
+p_p <- ggplot(db_pob, aes(x = distancia_parque, y = price)) +
+  geom_point(col = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a un parque en metros (log-scale)", 
+       y = "Valor del inmueble (log-scale)",
+       title = "Relación entre la proximidad a un parque y el valor del inmueble en El Poblado") +
+  scale_x_log10() +
+  scale_y_log10(labels = scales::dollar) +
+  theme_bw()
+ggplotly(p_p)
+
+
+#p2_p <- ggplot(db_pob, aes(x = distancia_bus_station, y = price)) +
+#  geom_point(col = "darkblue", alpha = 0.4) +
+#  labs(x = "Distancia mínima a una transporte en metros (log-scale)", 
+#       y = "Valor del inmueble (log-scale)",
+#       title = "Relación entre la proximidad a una estación de transporte y el valor del inmueble en El Poblado") +
+#  scale_x_log10() +
+#  scale_y_log10(labels = scales::dollar) +
+#  theme_bw()
+#ggplotly(p2_p)
+
+
+p3_p <- ggplot(db_pob, aes(x = distancia_parque)) +
+  geom_histogram(bins = 50, fill = "darkblue", alpha = 0.4) +
+  labs(x = "Distancia mínima a un parque en metros", y = "Cantidad",
+       title = "Distribución de la distancia a los parques en El Poblado") +
+  theme_bw()
+ggplotly(p3)
+
+#p4_p <- ggplot(db_pob, aes(x = distancia_bus_station)) +
+#  geom_histogram(bins = 50, fill = "darkblue", alpha = 0.4) +
+#  labs(x = "Distancia mínima a una estación de buses en metros", y = "Cantidad",
+#       title = "Distribución de la distancia a una estación de buses en El Poblado") +
+#  theme_bw()
+#ggplotly(p4_p)     
+      
+      
+      
+ ### Unir bases -------  
+db_ch <- select(db_ch, -distancia_bus_station)
+final_base <- rbind(db_ch, db_pob)     
+      

@@ -3,18 +3,29 @@
 rm(list=ls()) ## Limpiar el entorno de trabajo
 getwd()
 
+# solucion sf para mac
+
+# Para instalar rgeos
+install.packages ("rgeos", repos="http://R-Forge.R-project.org", type="source")
+# Para instalar rgdal
+install.packages ("rgdal", repos="http://R-Forge.R-project.org", type="source")
+# Llamamos devtools para instalar la version de Github de sf
+library (devtools)
+# Instalamos sf desde su version de <github 
+install_github("r-spatial/sf", configure.args = "--with-proj-lib=/usr/local/lib/")
+
 #librerias----
 require(pacman) # Llamar pacman (contiene la función p_load)
 
 # Llamar/instalar-llamar las librerías-----
 p_load(tidyverse, # manipular/limpiar conjuntos de datos.
        rio, # función import/export: leer/escribir archivos desde diferentes formatos. 
-       sf, # Leer/escribir/manipular datos espaciales
        leaflet,
        tmaptools, # geocode_OSM()
        osmdata,
        class,skimr,
-       sf,rgdal,raster,rgeos) # Get OSM's data) # Visualizaciones dinámicas 
+       rgdal,raster,rgeos,
+       sf) # Get OSM's data) # Visualizaciones dinámicas 
 
 select <- dplyr::select
 
@@ -91,6 +102,70 @@ test_final = test_final %>%
                               new_surface))
 sum(table(test_final$new_surface))
 
+## more patterns
+h = "[:digit:]+[:space:]+m2"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= h),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+l = "[:digit:]+[:space:]+mts"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= l),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+k = "[:digit:]+[:space:]+metros"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= k),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+m = "[:digit:]+mts"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= m),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+n = "[:digit:]+m2"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= n),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+r  = "[:digit:]+mt2"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= r),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+t = "[:digit:]+[:space:]+m"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= t),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+q = "[:digit:]+m"
+test_final = test_final %>% 
+  mutate(new_surface = ifelse(is.na(new_surface)==T,
+                              str_extract(string=test_final$description , pattern= q),
+                              new_surface))
+sum(table(test_final$new_surface))
+
+#---- otras descripciones ----
+remodelar = "para remodelar"
+test_final = test_final %>% 
+  mutate(remodelar = str_extract(string=test_final$description, pattern= remodelar),
+                              remodelar)
+
+
 #volver new_surface a numeric
 
 for (i in 1:nrow(test_final)) {
@@ -111,6 +186,21 @@ for (i in 1:nrow(test_final)) {
 for (i in 1:nrow(test_final)) {
   test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
                                              pattern = "," , replacement = ".")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "[:space:]+m" , replacement = "")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "[:space:]+metros" , replacement = "")
+}
+
+for (i in 1:nrow(test_final)) {
+  test_final$new_surface[i]<-str_replace_all(string = test_final$new_surface[i] , 
+                                             pattern = "mts" , replacement = "")
 }
 
 test_final$new_surface <- as.numeric(test_final$new_surface)

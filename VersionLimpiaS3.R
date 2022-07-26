@@ -1,10 +1,10 @@
 ## load packages  -----    
 rm(list=ls())
 require(pacman)
-p_load(rio , tidyverse , sf , leaflet , osmdata , nngeo, rgeos, ggplot2, plotly, dplyr, tidyr)
-
+p_load(rio, randomForest,caret, tidyverse , sf , leaflet , osmdata , nngeo, rgeos, ggplot2, plotly, dplyr, tidyr)
+getwd()
 #setwd("C:\\Users\\DELL\\OneDrive - Universidad de los Andes\\MECA 2022_2023\\BIGDATA\\TALLERES\\ProblemSet3")
-setwd("/Users/ignacioserrano/Documents/Maestria/Big Data/GitHub/ProblemSet3")
+#setwd("/Users/ignacioserrano/Documents/Maestria/Big Data/GitHub/ProblemSet3")
 
 ## load data
 train <- import("train_final_V3.Rds") %>% mutate(base="train")
@@ -384,4 +384,56 @@ ggplotly(p4_p)
  ### Unir bases -------  
 db_ch <- select(db_ch, -distancia_bus_station)
 final_base <- rbind(db_ch, db_pob)     
-      
+
+##Creacion de modelos ----
+test <- subset(final_base, base == "test")
+train <- subset(final_base, base == "train") 
+#modelo 1
+model_1 <- lm(price~surface_total+bathrooms+bedrooms+distancia_parque+distancia_retail+
+                distancia_bar, data = train)
+
+scatter <- ggplot(train, aes(x = surface_total, y = price)) +
+  geom_point(col = "darkblue", alpha = 0.4) +
+  labs(x = "Superficie en metros (log-scale)", 
+       y = "Valor del inmueble (log-scale)",
+       title = "Relación entre superficie y el valor del inmueble") +
+  scale_x_log10() +
+  scale_y_log10(labels = scales::dollar) +
+  theme_bw()
+ggplotly(scatter)
+
+#modelo 2
+
+require("xgboost")
+
+#Selección muestra de entrenamiento y prueba
+
+id_train <- sample(1:nrow(train),size = 0.7*nrow(train), replace = F)
+train_init<-train[id_train,]
+evaluation<-train[-id_train,]
+
+
+grid_default <- expand.grid(nrounds = c(250,500),
+                            max_depth = c(4,6,8),
+                            eta = c(0.01,0.3,0.5),
+                            gamma = c(0,1),
+                            min_child_weight = c(10, 25,50),
+                            colsample_bytree = c(0.7),
+                            subsample = c(0.6))
+
+
+set.seed(1410)
+ctrl <- makeTuneControlRandom(maxit = 10L)
+xgboost <- train(
+  price~surface_total+bathrooms+bedrooms+distancia_parque+distancia_retail+
+    distancia_bar,
+  data = train_init,
+  method = "xgbTree",
+ # trControl = ctrl,
+  metric = "Sens",
+  tuneGrid = grid_default,
+  preProcess = c("center", "scale")
+)
+
+
+

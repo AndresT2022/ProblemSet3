@@ -1038,3 +1038,185 @@ test_final<-test_final %>%
 
 saveRDS(train_final,file = "train_final_V3.rds")
 saveRDS(test_final,file = "test_final_V3.rds")
+
+#importar bases datos limpias ----
+
+test_final <- readRDS("test_final_V3.rds")
+train_final <- readRDS("train_final_V3.rds")
+
+## convertir en sf
+test_final <- st_as_sf(x=test_final,coords=c("lon","lat"),crs=4326)
+train_final <- st_as_sf(x=train_final,coords=c("lon","lat"),crs=4326)
+
+colnames(train_final)
+
+
+#elacticnet----
+el <- train(
+  price ~ bedrooms+bathrooms+surface_total, data = train_final, method = "glmnet",
+  trControl = trainControl("cv", number = 10), preProcess = c("center", "scale")
+)
+el
+
+#superlearner----
+
+require("tidyverse")
+require("ranger")
+require("SuperLearner")
+# set the seed for reproducibility
+set.seed(123)
+# generate the observed data
+n = 1000
+x = runif(n, 0, 8)
+y = 5 + 4 * sqrt(9 * x) * as.numeric(x <
+                                       2) + as.numeric(x >= 2) * (abs(x - 6)^(2)) +
+  rlaplace(n)
+D <- data.frame(x, y) # observed data
+
+xl <- seq(0, 8, 0.1)
+yl <- (5 + 4 * sqrt(9 * xl) * as.numeric(xl < 2) + as.numeric(xl >= 2) * 
+         (abs(xl -6)^(2)))
+Dl <- data.frame(xl, yl) # for plotting the true data
+
+
+# Specify the number of folds for
+# V-fold cross-validation
+folds = 5
+## split data into 5 groups for 5-fold
+## cross-validation we do this here so
+## that the exact same folds will be
+## used in both the SL fit with the R
+## package, and the hand coded SL
+index <- split(1:1000, 1:folds)
+splt <- lapply(1:folds, function(ind) D[index[[ind]], ])
+
+# view the first 6 observations in the # first [[1]] and second [[2]] folds
+head(splt[[1]])
+
+head(splt[[2]])
+
+# Fit using the SuperLearner package,
+# specify ntntoutcome-for-prediction
+# (y), the predictors (x), the loss
+# function (L2), ntntthe library
+# (sl.lib), and number of folds
+fitY <- SuperLearner(Y = y, X = data.frame(x),
+                     method = "method.NNLS", SL.library = c("SL.lm", "SL.ranger"),
+                     cvControl = list(V = folds, validRows = index))
+# View the output: 'Risk' column
+# returns the CV-MSE estimates
+# 'Coef' column gives the weights # for the final SuperLearner
+# (meta-learner)
+fitY
+
+# Now predict the outcome for all
+# possible x
+yS <- predict(fitY, newdata = data.frame(x = xl),onlySL = T)$pred
+# Create a dataframe of all x
+# and predicted SL responses
+Dl1 <- data.frame(xl, yS)
+
+library(nnls)
+library(ranger)
+library(data.table)
+#------------------------------------------------------------
+# Hand-coding Super Learner
+#------------------------------------------------------------
+## 2: the lapply() function is an
+## efficient way to rotate through the
+## folds to execute the following:
+## (a) set the ii-th fold to be the
+## validation set; (b) fit each
+## algorithm on the training set, which
+## is what's left after taking the
+## ii-th fold out (i.e., splt[-ii]);
+## (c) obtain the predicted outcomes
+## for observations in the validation
+## set; (d) estimate the estimated risk
+## (CV-MSE) for each fold 2b: fit each
+## algorithm on the training set (but
+## not the ii-th validation set)
+m1 <- lapply(1:folds, function(ii) lm(y ~x, data = rbindlist(splt[-ii])))
+m2 <- lapply(1:folds, function(ii) ranger(y~x,data = rbindlist(splt[-ii])))
+
+## 2c: predict the outcomes for
+## observation in the ii-th validation
+## set
+p1 <- lapply(1:folds, function(ii) predict(m1[[ii]], newdata = rbindlist(splt[ii])))
+p2 <- lapply(1:folds, function(ii) predict(m2[[ii]], data = rbindlist(splt[ii]))$predictions)
+# add the predictions to grouped # dataset 'splt'
+for (i in 1:folds) f
+splt[[i]] <- cbind(splt[[i]], p1[[i]],
+                   p2[[i]])
+g
+# view the first 6 observations in the # first fold column2 (y) is the
+# observed outcome; column3 is the
+# CV-predictions from lm column4 is # the CV-predictions from ranger;
+head(splt[[1]])
+
+## 2d: calculate CV risk for each
+## method for with ii-th validation set
+## our loss function is L2-squared
+## error; so our risk is mean squared
+## error
+risk1 <- lapply(1:folds, function(ii) mean((splt[[ii]][,2] - splt[[ii]][, 3])^2))
+risk2 <- lapply(1:folds, function(ii) mean((splt[[ii]][, 2] - splt[[ii]][, 4])^2))
+## 3: average the estimated risks
+## across the 5 folds to obtain 1
+## measure of performance for each
+## algorithm
+a <- rbind(cbind("lm", mean(do.call(rbind, risk1), na.rm = T)),
+           cbind("RF", mean(do.call(rbind,risk2), na.rm = T)))
+
+# checking to see match with SL output
+fitY
+## 4: estimate SL weights using nnls
+## (for convex combination) and
+## normalize
+# create a new datafame with the
+# observed outcome (y) and
+# CV-predictions from the 3 algorithms
+X <- data.frame(do.call(rbind, splt))[, -1]
+names(X) <- c("y", "lm", "RF")
+head(X)
+
+SL.r <- nnls(cbind(X[, 2], X[, 3]), X[, 1])$x
+alpha <- as.matrix(SL.r/sum(SL.r))
+alpha
+
+# compare to the package's coefficients
+fitY$coef
+
+## 5a: fit all algorithms to original
+## data and generate predictions
+m1 <- lm(y~x, data = D)
+m2 <- ranger(y ~ x, data = D)
+## 5b: predict from each fit using all
+## data
+p1 <- predict(m1, newdata = D)
+p2 <- predict(m2, data=D)$predictions
+predictions <- cbind(p1, p2)
+
+## 5c: for the observed data take a
+## weighted combination of predictions
+## using nnls coeficients as weights
+y_pred <- predictions %*% alpha
+head(y_pred)
+
+## now apply to new dataset
+## (xl)) to verify that our work
+## predicts similar results as actual
+## SL function
+p1 <- predict(m1, newdata = data.frame(x = xl))
+p2 <- predict(m2, data = data.frame(x = xl))$predictions
+predictions <- cbind(p1, p2)
+yS2 <- predictions %*% alpha
+
+# now we have a new dataframe of # (xl) and SL manual predicted outcome
+Dl2 <- data.frame(xl, yS2)
+head(Dl2)
+head(Dl1)
+
+
+
+

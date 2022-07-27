@@ -1,10 +1,15 @@
 ## load packages  -----    
 rm(list=ls())
 require(pacman)
-p_load(rio, randomForest,caret, tidyverse , sf , leaflet , osmdata , nngeo, rgeos, ggplot2, plotly, dplyr, tidyr)
+p_load(rio, randomForest,
+       caret, tidyverse, 
+       sf, leaflet, 
+       osmdata, 
+       nngeo, rgeos, 
+       ggplot2, plotly, dplyr, tidyr, rpart)
 getwd()
 #setwd("C:\\Users\\DELL\\OneDrive - Universidad de los Andes\\MECA 2022_2023\\BIGDATA\\TALLERES\\ProblemSet3")
-#setwd("/Users/ignacioserrano/Documents/Maestria/Big Data/GitHub/ProblemSet3")
+setwd("/Users/ignacioserrano/Documents/Maestria/Big Data/GitHub/ProblemSet3")
 
 ## load data
 train <- import("train_final_V3.Rds") %>% mutate(base="train")
@@ -69,14 +74,14 @@ osm_sf3 = osm3 %>% osmdata_sf()
 osm_sf3
 
 ## Obtener un objeto sf
-food_court = osm_sf3$osm_points %>% select(osm_id,amenity)
-food_court
+bar = osm_sf3$osm_points %>% select(osm_id,amenity)
+bar
 
 
 
 bus_station_chapinero <- st_intersection(chapinero, bus_station)
 parks_chapinero <- st_intersection(chapinero, parques_geometria)
-food_court_chapinero <- st_intersection(chapinero, food_court)
+bar_chapinero <- st_intersection(chapinero, bar)
 retail_chapinero <- st_intersection(chapinero, retail)
 
 
@@ -111,10 +116,10 @@ leaflet() %>%
              col = "red", opacity = 1, radius = 1)
 
 # centroides bares chapinero
-centroides_bar <- gCentroid(as(food_court_chapinero$geometry, "Spatial"), byid = T)
+centroides_bar <- gCentroid(as(bar_chapinero$geometry, "Spatial"), byid = T)
 leaflet() %>%
   addTiles() %>%
-  addCircles(data = food_court_chapinero, col = "green",
+  addCircles(data = bar_chapinero, col = "green",
               opacity = 0.8, popup = retail_chapinero$name) %>%
   addCircles(lng = centroides_bar$x, 
              lat = centroides_bar$y, 
@@ -124,10 +129,10 @@ leaflet() %>%
 leaflet() %>%
   addTiles(group = "Open Street")%>% 
   addPolygons(data = chapinero, color = "blue")%>% 
-  addCircleMarkers(data=bus_station_chapinero , col="red")%>%
+  addCircleMarkers(data=bus_station_chapinero , col="red", radius = 0.5)%>%
   addPolygons(data=retail_chapinero , col="brown")%>%
   addPolygons(data=parks_chapinero , col="green")%>%
-  addCircles(data=food_court_chapinero, color = "purple")
+  addCircles(data=bar_chapinero, color = "purple")
   addCircleMarkers(data=db_ch , col="yellow" , label=db_ch$title, radius= 0.25)
 addLayersControl(
   baseGroups = c("Open Street", "World Imagery")
@@ -158,7 +163,7 @@ db_ch$distancia_bus_station <- dist_min_bus_station
 db_ch$distancia_retail <- dist_min_retail
 db_ch$distancia_bar <- dist_min_bar
 
-
+#Plots chapinero ----
 p <- ggplot(db_ch, aes(x = distancia_parque, y = price)) +
   geom_point(col = "darkblue", alpha = 0.4) +
   labs(x = "Distancia mínima a un parque en metros (log-scale)", 
@@ -221,7 +226,7 @@ osm_sf
 bus_station_p = osm_sf$osm_points %>% select(osm_id,amenity)
 bus_station_p
 
-## Retail
+## Retail Poblado
 opq(bbox = getbb("Medellín, Colombia"))
 ## objeto osm
 osm = opq(bbox = getbb("Medellín, Colombia")) %>%
@@ -240,7 +245,7 @@ parques_p_sf <- osmdata_sf(parques_p)
 parques_p_geometria <- parques_p_sf$osm_polygons %>% 
   select(osm_id, name)
 
-## nightclub
+##Bares poblado
 
 opq(bbox = getbb("Medellín, Colombia"))
 ## objeto osm
@@ -276,7 +281,6 @@ bus_station_poblado <- st_intersection(poblado, bus_station_p)
 parks_poblado <- st_intersection(poblado, parques_p_geometria)
 food_court_poblado <- st_intersection(poblado, food_court_p)
 retail_poblado <- st_intersection(poblado, retail_p)
-nightclub_poblado <- st_intersection(poblado, night_p)
 bar_poblado <- st_intersection(poblado, bar_p)
 
 ##Mapa 1 medellin ----      
@@ -285,7 +289,7 @@ leaflet() %>% addTiles() %>%
         addPolygons(data=parks_poblado,color="green") %>% 
         addCircleMarkers(data=bus_station_poblado,color="blue") %>% 
         addPolygons(data=retail_poblado,color="brown") %>% 
-        addCircles(data=db_pob, color = "yellow") %>% 
+        addCircles(data=db_pob, color = "yellow", radius = 0.25) %>% 
   addCircles(data=food_court_poblado, color="purple") %>% 
   addCircles(data=bar_poblado, color = "black")
   
@@ -341,7 +345,7 @@ db_pob$distancia_retail <- dist_min_retail_p
 db_pob$distancia_bar <- dist_min_bar_p
 
 
-
+#Plots Poblado ----
 
 p_p <- ggplot(db_pob, aes(x = distancia_parque, y = price)) +
   geom_point(col = "darkblue", alpha = 0.4) +
@@ -384,8 +388,17 @@ ggplotly(p4_p)
  ### Unir bases -------  
 db_ch <- select(db_ch, -distancia_bus_station)
 final_base <- rbind(db_ch, db_pob)     
-
-##Creacion de modelos ----
+#mas plots----
+p0 <- ggplot(db_ch, aes(x = surface_total, y = price)) +
+  geom_point(col = "darkblue", alpha = 0.4) +
+  labs(x = "Metros cuadrados", 
+       y = "Valor del inmueble (log-scale)",
+       title = "Precio por metro") +
+  scale_x_log10() +
+  scale_y_log10(labels = scales::dollar) +
+  theme_bw()
+ggplotly(p0)
+## ----Creacion de modelos ----
 test <- subset(final_base, base == "test")
 train <- subset(final_base, base == "train") 
 #modelo 1
@@ -407,7 +420,7 @@ ggplotly(scatter)
 require("xgboost")
 
 #Selección muestra de entrenamiento y prueba
-
+set.seed(1410)
 id_train <- sample(1:nrow(train),size = 0.7*nrow(train), replace = F)
 train_init<-train[id_train,]
 evaluation<-train[-id_train,]
@@ -421,19 +434,57 @@ grid_default <- expand.grid(nrounds = c(250,500),
                             colsample_bytree = c(0.7),
                             subsample = c(0.6))
 
-
 set.seed(1410)
-ctrl <- makeTuneControlRandom(maxit = 10L)
-xgboost <- train(
+xgboost <- train(price~surface_total+bathrooms+bedrooms+
+                   distancia_parque+distancia_retail+
+                   distancia_bar,
+                 data = train_init,
+  method = "xgbTree",
+  #trControl = ctrl,
+  metric = "Sens",
+  tuneGrid = grid_default,
+  preProcess = c("center", "scale"))
+
+pred_xb <- predict(xgboost, test)
+pred_xb
+varImp(xgboost,scale=TRUE)
+
+
+# ensayo arbol ----
+set.seed(1410)
+library(randomForest)
+
+forest <- train(
   price~surface_total+bathrooms+bedrooms+distancia_parque+distancia_retail+
     distancia_bar,
   data = train_init,
-  method = "xgbTree",
- # trControl = ctrl,
+  method = "rf",
+  #trControl = ctrl,
   metric = "Sens",
-  tuneGrid = grid_default,
   preProcess = c("center", "scale")
 )
 
+forest
+varImp(forest,scale=TRUE)
+
+pred_rf <- predict(forest, test)
+pred_rf
+confusionMatrix(test$price, pred_rf)
 
 
+#Forest1
+forest1 <- train(
+  price~surface_total+bathrooms+bedrooms+distancia_retail+
+    distancia_bar,
+  data = train_init,
+  method = "rf",
+  #trControl = ctrl,
+  metric = "Sens",
+  preProcess = c("center", "scale")
+)
+
+forest1
+varImp(forest1,scale=TRUE)
+
+pred_rf1 <- predict(forest1, test)
+pred_rf1

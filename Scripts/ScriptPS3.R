@@ -415,6 +415,10 @@ scatter <- ggplot(train, aes(x = surface_total, y = price)) +
   theme_bw()
 ggplotly(scatter)
 
+summary(model_1)
+pred_ols<-predict(model_1, test)
+pred_ols
+
 #modelo 2
 
 require("xgboost")
@@ -445,9 +449,28 @@ xgboost <- train(price~surface_total+bathrooms+bedrooms+
   tuneGrid = grid_default,
   preProcess = c("center", "scale"))
 
+xgboost
+#427870309 RMSE
 pred_xb <- predict(xgboost, test)
 pred_xb
 varImp(xgboost,scale=TRUE)
+
+##xgboost1
+set.seed(1410)
+xgboost1 <- train(price~surface_total+bathrooms+bedrooms+
+                  distancia_retail+
+                   distancia_bar,
+                 data = train_init,
+                 method = "xgbTree",
+                 #trControl = ctrl,
+                 metric = "Sens",
+                 tuneGrid = grid_default,
+                 preProcess = c("center", "scale"))
+xgboost1
+#426280069 RMSE
+pred_xb1 <- predict(xgboost1, test)
+pred_xb1
+varImp(xgboost1,scale=TRUE)
 
 
 # ensayo arbol ----
@@ -465,6 +488,7 @@ forest <- train(
 )
 
 forest
+#414054711 RMSE
 varImp(forest,scale=TRUE)
 
 pred_rf <- predict(forest, test)
@@ -484,7 +508,19 @@ forest1 <- train(
 )
 
 forest1
+#408950512 RMSE
 varImp(forest1,scale=TRUE)
 
 pred_rf1 <- predict(forest1, test)
 pred_rf1
+
+##CSV predicciones
+
+submit <- cbind(test$property_id, pred_xb)
+colnames(submit) <- c("property_id", "price")
+view(submit)
+
+write.csv(submit,"predicciones_Garcia_Serrano_Torres.csv", row.names = FALSE)
+
+summary(submit)
+submit<-submit %>% as.numeric(price)
